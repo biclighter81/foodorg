@@ -7,6 +7,7 @@ import * as React from 'react';
 import { Platform } from 'react-native';
 import { NAV_THEME } from '~/lib/constants';
 import { useColorScheme } from '~/lib/useColorScheme';
+import AppHeader from '~/components/app/Header';
 
 const LIGHT_THEME: Theme = {
     ...DefaultTheme,
@@ -47,7 +48,7 @@ export default function RootLayout() {
     return (
         <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
             <StatusBar style={isDarkColorScheme ? 'light' : 'dark'} />
-            <Stack screenOptions={{ headerTitle: "APA" }} />
+            <Stack screenOptions={{ headerTitle: () => <AppHeader /> }} />
         </ThemeProvider>
     );
 }
