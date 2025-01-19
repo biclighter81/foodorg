@@ -27,7 +27,7 @@ export default function RecipeScanner() {
 
     useEffect(() => {
         console.log('fetching health')
-        fetch('http://7.32.34.209:3000/health').then(res => res.json()).then(console.log) //this is my device ip!
+        fetch('http://10.0.0.22:3000/health').then(res => res.json()).then(console.log) //this is my device ip!
     }, [])
 
     const navigate = (...params: any) => nav.navigate(...params as never)
@@ -39,7 +39,7 @@ export default function RecipeScanner() {
         // Append the Blob to FormData with a proper name and type
         formData.append('image', { uri: photo.uri, name: 'image.jpg', type: 'image/jpeg' } as any);
         try {
-            const res = await fetch('http://7.32.34.209:3000/scan-recipe', {
+            const res = await fetch('http://10.0.0.22:3000/scan-recipe', {
                 method: 'POST',
                 body: formData,
                 headers: {

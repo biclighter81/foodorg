@@ -81,7 +81,7 @@ export default function RootLayout() {
                 <Stack.Navigator screenOptions={{ headerTitle: () => <AppHeader /> }} initialRouteName='login'>
                     <Stack.Screen name='login' component={Login} />
                     <Stack.Screen name='dash' component={Dash} options={{ headerBackVisible: false }} />
-                    <Stack.Screen name='add_recipe' component={AddRecipe} options={{ headerBackVisible: false }} />
+                    <Stack.Screen name='add_recipe' component={AddRecipe as any} options={{ headerBackVisible: false }} />
                     <Stack.Screen name='scan_recipe' component={RecipeScanner} options={{ headerBackVisible: false }} />
                 </Stack.Navigator>
             </ThemeProvider>

@@ -6,15 +6,18 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Text } from "~/components/ui/text";
+import { Textarea } from "~/components/ui/textarea";
+import { useAuth } from "~/hooks/useAuth";
 import { Recipe } from "~/types/Recipe";
 
 export default function AddRecipe({ route }: { route: { params: { recipe: Recipe } | undefined } }) {
     const [tab, setTab] = useState('ingredients');
+    const { auth } = useAuth();
     const [recipe, setRecipe] = useState<Recipe>(
         route.params?.recipe || {
             name: '',
             ingredients: [{ name: '', amount: '', unit: '' }],
-            method: [],
+            method: [{ description: '', title: '' }],
         } as Recipe
     );
     const nav = useNavigation();
@@ -39,6 +42,30 @@ export default function AddRecipe({ route }: { route: { params: { recipe: Recipe
     };
     const dismissKeyboard = () => Keyboard.dismiss();
 
+    const handleAddRecipe = async () => {
+        try {
+            //delete empty ingredients and steps
+            const ingredients = recipe.ingredients.filter(ingredient => ingredient.name);
+            const method = recipe.method.filter(step => step.description);
+            const res = await fetch('http://10.0.0.22:3000/recipe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${auth.access_token}`,
+                },
+                body: JSON.stringify({ ...recipe, ingredients, method }),
+            })
+            if (!res.ok) {
+                throw new Error('Failed to add recipe');
+            }
+            const data = await res.json();
+            console.log(data);
+            nav.navigate('dash' as never);
+        } catch (error) {
+            console.error('Error adding recipe:', error);
+        }
+    }
+
     useEffect(() => {
         // Add a new ingredient if the last one is not empty
         if (recipe.ingredients[recipe.ingredients.length - 1].name) {
@@ -55,6 +82,23 @@ export default function AddRecipe({ route }: { route: { params: { recipe: Recipe
             });
         }
     }, [recipe.ingredients]);
+
+    useEffect(() => {
+        // Add a new step if the last one is not empty
+        if (recipe.method[recipe.method.length - 1]?.description) {
+            setRecipe({
+                ...recipe,
+                method: [...recipe.method, { title: '', description: '' }],
+            });
+        }
+        // Remove the last step if the second-to-last one is empty
+        if (recipe.method.length > 1 && !recipe.method[recipe.method.length - 2]?.description) {
+            setRecipe({
+                ...recipe,
+                method: recipe.method.slice(0, -1),
+            });
+        }
+    }, [recipe.method]);
 
     return (
         <KeyboardAvoidingView
@@ -115,7 +159,35 @@ export default function AddRecipe({ route }: { route: { params: { recipe: Recipe
                                         ))}
                                     </TabsContent>
                                     <TabsContent value="method" className="flex-grow">
-                                        <Text>{JSON.stringify(recipe.method)}</Text>
+                                        {
+                                            recipe.method.map((step, index) => (
+                                                <View key={`method-${index}`} className="border border-gray-300 rounded-md mt-6 py-4 px-4">
+                                                    <View className="w-24 bg-black rounded-full flex items-center -mt-8 -ml-4">
+                                                        <Text className="text-white px-4 py-1 uppercase font-black">Step {index + 1}</Text>
+                                                    </View>
+                                                    <Input
+                                                        placeholder="Titel"
+                                                        value={step.title}
+                                                        className="w-full mt-2"
+                                                        onChangeText={(text) => {
+                                                            const updatedMethod = [...recipe.method];
+                                                            updatedMethod[index].title = text;
+                                                            setRecipe({ ...recipe, method: updatedMethod });
+                                                        }}
+                                                    />
+                                                    <Textarea
+                                                        placeholder="Description"
+                                                        value={step.description}
+                                                        className="w-full mt-2"
+                                                        onChangeText={(text) => {
+                                                            const updatedMethod = [...recipe.method];
+                                                            updatedMethod[index].description = text;
+                                                            setRecipe({ ...recipe, method: updatedMethod });
+                                                        }}
+                                                    />
+                                                </View>
+                                            ))
+                                        }
                                     </TabsContent>
                                 </Tabs>
                             </View>
@@ -127,7 +199,9 @@ export default function AddRecipe({ route }: { route: { params: { recipe: Recipe
                                 >
                                     <Text>Scan an image</Text>
                                 </Button>
-                                <Button className="mb-8 mt-4">
+                                <Button className="mb-8 mt-4"
+                                    onPress={handleAddRecipe}
+                                >
                                     <Text>Add recipe</Text>
                                 </Button>
                             </View>

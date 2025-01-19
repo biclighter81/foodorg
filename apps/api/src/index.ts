@@ -1,9 +1,12 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 dotenv.config();
 import OpenAI from 'openai';
+import { MongoClient } from 'mongodb';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import * as Minio from 'minio';
+import { TokenPayload } from './types';
 import multer from 'multer';
 const upload = multer();
 
@@ -17,6 +20,14 @@ const minio = new Minio.Client({
   secretKey: process.env.MINIO_SECRET_KEY,
 });
 
+declare global {
+  namespace Express {
+    interface Request {
+      auth?: TokenPayload;
+    }
+  }
+}
+
 const app = express();
 app.use(
   cors({
@@ -24,6 +35,37 @@ app.use(
   })
 );
 app.use(express.json());
+
+//init mongodb
+const client = new MongoClient(process.env.MONGO_URI!);
+client.connect().then(() => {
+  console.log('Connected to MongoDB');
+});
+
+//jwt middleware
+const jwtMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const jwks = createRemoteJWKSet(new URL(process.env.JWKS_URI!));
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    res.status(401).json({
+      message: 'No token provided',
+    });
+    return;
+  }
+  try {
+    const { payload } = await jwtVerify(token, jwks);
+    req.auth = payload as TokenPayload;
+    next();
+  } catch (e) {
+    res.status(401).json({
+      message: 'Invalid token',
+    });
+  }
+};
 
 app.post('/scan-recipe', upload.single('image'), async (req, res) => {
   const file = req.file;
@@ -45,11 +87,26 @@ app.post('/scan-recipe', upload.single('image'), async (req, res) => {
   });
 });
 
+app.get('/recipes', jwtMiddleware, async (req, res) => {
+  const db = client.db('foodorg');
+  const collection = db.collection('recipes');
+  const recipes = await collection.find({ uid: req.auth?.sub }).toArray();
+  res.json(recipes);
+});
+
 app.get('/health', (req, res) => {
   console.log('Health check');
   res.json({
     status: 'ok',
   });
+});
+
+app.post('/recipe', jwtMiddleware, async (req, res) => {
+  const recipe = req.body;
+  const db = client.db('foodorg');
+  const collection = db.collection('recipes');
+  const result = await collection.insertOne({ recipe, uid: req.auth?.sub });
+  res.json(result);
 });
 
 async function scanRecipe(imgUrl: string) {
